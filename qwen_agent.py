@@ -34,7 +34,7 @@ class QwenAgent:
         self,
         message: str,
         context: Optional[str] = None,
-        timeout: int = 45000  # Reduzido para 45s
+        timeout: int = 600000  # Aumentado para 10 minutos (600s)
     ) -> str:
         """
         Versão assíncrona: Envia uma mensagem para o qwen-code e retorna a resposta.
@@ -85,10 +85,13 @@ class QwenAgent:
                 logger.info(f"[ASYNC] communicate() completou em {elapsed:.2f}s, returncode={process.returncode}")
             except asyncio.TimeoutError:
                 logger.error(f"[ASYNC] TIMEOUT após {timeout}ms! Matando processo {process.pid}")
-                process.kill()
-                await process.wait()
+                try:
+                    process.kill()
+                    await process.wait()
+                except:
+                    pass
                 logger.error(f"qwen-code timed out after {timeout}ms")
-                return "[Timeout] qwen-code took too long to respond"
+                return "[Timeout] A tarefa demorou demais e foi interrompida (10 min)."
 
             # Decodifica stdout como resposta
             response = stdout.decode('utf-8', errors='replace').strip() if stdout else ""
@@ -116,7 +119,7 @@ class QwenAgent:
         self,
         message: str,
         context: Optional[str] = None,
-        timeout: int = 120000
+        timeout: int = 600000
     ) -> str:
         """
         Versão assíncrona: Envia uma mensagem para o qwen-code e retorna a resposta.
@@ -146,7 +149,7 @@ class QwenAgent:
         self,
         message: str,
         context: Optional[str] = None,
-        timeout: int = 120000
+        timeout: int = 600000
     ) -> str:
         """
         Implementação síncrona interna para chat.
@@ -179,12 +182,12 @@ class QwenAgent:
 
             # Aguarda com timeout
             try:
-                stdout, stderr = process.communicate(timeout=timeout / 1000)
+                stdout, stderr = process.communicate(timeout=timeout / 2000)
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
                 logger.error(f"qwen-code timed out after {timeout}ms")
-                return "[Timeout] qwen-code took too long to respond"
+                return "[Timeout] A tarefa demorou demais e foi interrompida (10 min)."
 
             # Retorna stdout como resposta
             response = stdout.strip() if stdout else ""
@@ -213,7 +216,8 @@ class QwenAgent:
         recent_history: list[str],
         relevant_memories: list[tuple[str, float]],
         max_history: int = 10,
-        max_memories: int = 5
+        max_memories: int = 5,
+        timeout: int = 600000
     ) -> str:
         """
         Versão assíncrona: Envia mensagem com contexto de memória e histórico.
@@ -224,6 +228,7 @@ class QwenAgent:
             relevant_memories: Memórias relevantes (conteúdo, score).
             max_history: Máximo de itens do histórico para incluir.
             max_memories: Máximo de memórias para incluir.
+            timeout: Timeout em milissegundos.
 
         Returns:
             Resposta do qwen-code.
@@ -252,7 +257,7 @@ class QwenAgent:
         context = "\n".join(context_parts)
 
         # Chama qwen-code com contexto completo
-        return await self.chat_async(message, context=context)
+        return await self.chat_async(message, context=context, timeout=timeout)
 
     def chat_with_memory(
         self,

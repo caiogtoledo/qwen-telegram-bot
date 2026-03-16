@@ -53,3 +53,7 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+*index.faiss
+*metadata.pkl
+memory_storage/
