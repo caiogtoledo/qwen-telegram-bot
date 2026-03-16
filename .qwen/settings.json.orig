@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "qwen-memory": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "cwd": "/Users/caio/Desktop/projects/qwen-space",
+      "env": {}
+    }
+  }
+}
