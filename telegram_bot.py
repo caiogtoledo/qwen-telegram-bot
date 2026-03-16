@@ -167,14 +167,14 @@ class TelegramQwenBot:
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handler para mensagens de texto."""
         logger.debug(f"Update recebido: {update}")
-        
+
         if not update.message or not update.message.text:
             logger.warning("Mensagem vazia ou inválida")
             return
 
         user = update.effective_user
         chat_id = update.effective_chat.id
-        
+
         logger.info(f"Usuário ID: {user.id}, Nome: {user.first_name}")
         logger.info(f"AUTHORIZED_USERS: {self.AUTHORIZED_USERS}")
 
@@ -201,52 +201,124 @@ class TelegramQwenBot:
             username=user.username if user else None
         )
 
-        # Envia "digitando..." para feedback
-        await update.message.chat_action(action="typing")
+        # Envia "digitando..." e "hmm..." IMEDIATAMENTE para feedback
+        thinking_message = None
+        try:
+            await update.effective_message.chat_action(action="typing")
+            logger.info(f"[BOT] Enviando mensagem 'hmm...' para chat {chat_id}")
+            thinking_message = await update.effective_message.reply_text("🤔 hmm...")
+            logger.info(f"[BOT] Mensagem 'hmm...' enviada com message_id={thinking_message.message_id}")
+        except Exception as e:
+            logger.warning(f"[BOT] Erro ao enviar status inicial: {e}")
 
         # Obtém contexto (histórico + memórias relevantes)
-        history, memories = self.conv_manager.get_context(
-            chat_id=chat_id,
-            query=message_text,
-            max_history=self.max_history,
-            max_memories=self.max_memories
-        )
 
-        # Chama Qwen-Code
-        response = self.qwen_agent.chat_with_memory(
-            message=message_text,
-            recent_history=history,
-            relevant_memories=memories,
-            max_history=10,
-            max_memories=5
-        )
+        logger.info(f"[BOT] Obtendo contexto com get_context()...")
+        try:
+            # Timeout de 10 segundos para obter contexto
+            history, memories = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self.conv_manager.get_context(
+                        chat_id=chat_id,
+                        query=message_text,
+                        max_history=self.max_history,
+                        max_memories=self.max_memories
+                    )
+                ),
+                timeout=10
+            )
+            logger.info(f"[BOT] Contexto obtido: {len(history)} history, {len(memories)} memories")
+        except asyncio.TimeoutError:
+            logger.error(f"[BOT] TIMEOUT de 10s ao obter contexto")
+            history, memories = [], []
+            logger.info(f"[BOT] Usando fallback sem memória")
+        except Exception as e:
+            logger.error(f"[BOT] ERRO ao obter contexto: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Fallback: usa apenas histórico vazio
+            history, memories = [], []
+            logger.info(f"[BOT] Usando fallback sem memória")
 
-        logger.info(f"Resposta Qwen: {response[:100]}...")
+        # Chama Qwen-Code em uma thread separada para não bloquear o event loop
+        logger.info(f"[BOT] INICIANDO chamada qwen_agent em thread separada")
+        logger.info(f"[BOT] Mensagem: {message_text[:50]}...")
+        
+        async def call_qwen():
+            return await self.qwen_agent.chat_with_memory_async(
+                message=message_text,
+                recent_history=history,
+                relevant_memories=memories,
+                max_history=10,
+                max_memories=5
+            )
+        
+        try:
+            # Usa asyncio.wait_for com timeout absoluto
+            response = await asyncio.wait_for(call_qwen(), timeout=60)
+            logger.info(f"[BOT] qwen_agent COMPLETOU em menos de 60s")
+        except asyncio.TimeoutError:
+            logger.error(f"[BOT] TIMEOUT de 60s atingido!")
+            response = "⚠️ Desculpe, a resposta está demorando mais que o esperado. Tente novamente."
+        except Exception as e:
+            logger.error(f"[BOT] ERRO em chat_with_memory_async: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            response = f"[Erro ao processar] {str(e)}"
 
-        # Adiciona resposta ao histórico
+        logger.info(f"[BOT] Resposta Qwen ({len(response)} chars): {response[:100]}...")
+
+        # Adiciona resposta ao histórico ANTES de enviar para garantir que está salvo
         self.conv_manager.add_message(
             chat_id=chat_id,
             role="assistant",
             content=response
         )
 
-        # Salva interação na memória (importância média)
-        # Salva tanto a pergunta quanto a resposta
-        self.conv_manager.save_to_memory(
-            chat_id=chat_id,
-            content=f"Pergunta: {message_text}",
-            importance=0.6,
-            store_long_term=True
-        )
-        self.conv_manager.save_to_memory(
-            chat_id=chat_id,
-            content=f"Resposta: {response[:500]}",  # Limita tamanho
-            importance=0.5,
-            store_long_term=True
-        )
-
         # Envia resposta (pode ser longa, então divide se necessário)
-        await self._send_long_message(update.message, response)
+        # Se for curta, tenta editar a mensagem "hmm..."
+        if len(response) <= 4096:
+            if thinking_message:
+                try:
+                    await thinking_message.edit_text(response)
+                    logger.debug("Mensagem 'hmm...' editada com a resposta.")
+                except Exception as e:
+                    logger.warning(f"Falha ao editar mensagem: {e}. Enviando nova mensagem.")
+                    await self._send_long_message(update.effective_message, response)
+                    try:
+                        await thinking_message.delete()
+                    except:
+                        pass
+            else:
+                # Se não temos thinking_message, enviamos normalmente
+                await self._send_long_message(update.effective_message, response)
+        else:
+            # Se for longa, deleta o "hmm..." e envia em partes
+            if thinking_message:
+                try:
+                    await thinking_message.delete()
+                except:
+                    pass
+            await self._send_long_message(update.effective_message, response)
+
+        # Salva interação na memória (importância média)
+        try:
+            # Salva tanto a pergunta quanto a resposta
+            self.conv_manager.save_to_memory(
+                chat_id=chat_id,
+                content=f"Pergunta: {message_text}",
+                importance=0.6,
+                store_long_term=True
+            )
+            self.conv_manager.save_to_memory(
+                chat_id=chat_id,
+                content=f"Resposta: {response[:500]}",  # Limita tamanho
+                importance=0.5,
+                store_long_term=True
+            )
+        except Exception as e:
+            logger.error(f"[BOT] Erro ao salvar na memória: {e}")
 
     async def _send_long_message(self, message, text: str, max_length: int = 4096):
         """
@@ -288,43 +360,16 @@ class TelegramQwenBot:
                 "Tente novamente ou use /help para mais informações."
             )
 
-    def run(self) -> None:
-        """
-        Inicia o bot.
-        
-        Este método é bloqueante e roda até o bot ser parado.
-        """
-        # Verifica se qwen-code está disponível
-        if not self.qwen_agent.is_available():
-            logger.warning(
-                "⚠️  qwen-code não encontrado no PATH. "
-                "Certifique-se de que está instalado e acessível."
-            )
+    async def on_startup(self, application):
+        """Executado quando o bot inicia."""
+        logger.info("Bot iniciado! Aguardando mensagens em tempo real...")
+        # Remove webhook para garantir que polling funcione
+        await application.bot.delete_webhook()
+        logger.info("Webhook removido, polling ativo")
 
-        logger.info("Iniciando bot do Telegram...")
-        logger.info(f"Memória: {self.memory.stats()}")
-
-        # Cria aplicação
-        self.application = (
-            Application.builder()
-            .token(self.token)
-            .build()
-        )
-
-        # Adiciona handlers
-        self.application.add_handler(CommandHandler("start", self.start_command))
-        self.application.add_handler(CommandHandler("help", self.help_command))
-        self.application.add_handler(CommandHandler("clear", self.clear_command))
-        self.application.add_handler(CommandHandler("memory", self.memory_command))
-        self.application.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)
-        )
-
-        # Adiciona handler de erros
-        self.application.add_error_handler(self.handle_error)
-
-        # Inicia polling
-        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+    async def on_shutdown(self, application):
+        """Executado quando o bot está parando."""
+        logger.info("Bot está parando... limpando recursos...")
 
 
 def main():
@@ -341,19 +386,66 @@ def main():
         print("   export TELEGRAM_BOT_TOKEN='seu-token-aqui'")
         return 1
 
-    # Cria e executa bot
+    # Cria bot
     bot = TelegramQwenBot(
         token=token,
         qwen_command=os.getenv("QWEN_COMMAND", "qwen"),
         memory_path=os.getenv("MEMORY_PATH", "./memory_storage")
     )
 
+    async def run_async():
+        """Executa o bot assincronamente."""
+        logger.info("Iniciando bot do Telegram...")
+        logger.info(f"Memória: {bot.memory.stats()}")
+
+        # Cria aplicação
+        app = (
+            Application.builder()
+            .token(bot.token)
+            .post_init(bot.on_startup)
+            .post_shutdown(bot.on_shutdown)
+            .build()
+        )
+
+        # Adiciona handlers
+        app.add_handler(CommandHandler("start", bot.start_command))
+        app.add_handler(CommandHandler("help", bot.help_command))
+        app.add_handler(CommandHandler("clear", bot.clear_command))
+        app.add_handler(CommandHandler("memory", bot.memory_command))
+        app.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_message)
+        )
+        app.add_error_handler(bot.handle_error)
+
+        # Inicia polling
+        await app.initialize()
+        await app.start()
+        await app.updater.start_polling(
+            allowed_updates=Update.ALL_TYPES,
+            timeout=30,
+            drop_pending_updates=True
+        )
+
+        # Mantém rodando até ser interrompido
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            logger.info("Parando updater...")
+            await app.updater.stop()
+            await app.stop()
+            await app.shutdown()
+
     try:
-        bot.run()
+        asyncio.run(run_async())
     except KeyboardInterrupt:
-        print("\nBot parado pelo usuário.")
+        logger.info("Bot parado pelo usuário (KeyboardInterrupt).")
     except Exception as e:
         logger.error(f"Erro ao executar bot: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return 1
 
     return 0

@@ -8,8 +8,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 import threading
+import logging
 
 from memory_manager import MemoryManager
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -79,7 +82,7 @@ class ConversationManager:
             inactive_timeout_minutes: Timeout para conversas inativas (None = sem timeout).
         """
         self._conversations: dict[int, Conversation] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._memory = memory
         self._max_history = max_history_per_user
         self._inactive_timeout = inactive_timeout_minutes
@@ -158,22 +161,29 @@ class ConversationManager:
         Returns:
             Tupla (histórico_recente, memórias_relevantes).
         """
+        logger.info(f"[CONV] get_context() iniciado para chat_id={chat_id}")
+        
         with self._lock:
+            logger.info(f"[CONV] Lock adquirido, obtendo conversa...")
             conv = self._conversations.get(chat_id)
 
             # Histórico recente
             history = conv.get_history_for_context(max_history) if conv else []
+            logger.info(f"[CONV] Histórico obtido: {len(history)} itens")
 
-            # Busca memórias relevantes
-            results = self._memory.search(query, top_k=max_memories)
+        # Busca memórias relevantes FORA do lock (pode demorar)
+        logger.info(f"[CONV] Iniciando memory.search() para query: {query[:50]}...")
+        results = self._memory.search(query, top_k=max_memories)
+        logger.info(f"[CONV] Search completou")
 
-            # Combina resultados de longo prazo
-            memories = [
-                (item.content, score)
-                for item, score in results.long_term
-            ]
+        # Combina resultados de longo prazo
+        memories = [
+            (item.content, score)
+            for item, score in results.long_term
+        ]
+        logger.info(f"[CONV] Memórias combinadas: {len(memories)} itens")
 
-            return history, memories
+        return history, memories
 
     def save_to_memory(
         self,

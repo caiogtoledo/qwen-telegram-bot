@@ -6,9 +6,12 @@ Integra memória de curto e longo prazo em uma interface unificada.
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
+import logging
 
 from short_term_memory import ShortTermMemory, MemoryItem
 from long_term_memory import LongTermMemory, LongTermMemoryItem
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -134,17 +137,24 @@ class MemoryManager:
     def search(self, query: str, top_k: int = 5) -> MemoryResult:
         """
         Busca informações relevantes na memória.
-        
+
         Args:
             query: Texto de busca.
             top_k: Número máximo de resultados de cada memória.
-            
+
         Returns:
             MemoryResult com resultados de ambas as memórias.
         """
-        short_results = self._short_term.get_recent(top_k)
-        long_results = self._long_term.search(query, top_k=top_k)
+        logger.info(f"[MEM] search() iniciado: query={query[:50]}..., top_k={top_k}")
         
+        logger.info(f"[MEM] Buscando na short_term...")
+        short_results = self._short_term.get_recent(top_k)
+        logger.info(f"[MEM] Short_term: {len(short_results)} resultados")
+        
+        logger.info(f"[MEM] Buscando na long_term...")
+        long_results = self._long_term.search(query, top_k=top_k)
+        logger.info(f"[MEM] Long_term: {len(long_results)} resultados")
+
         return MemoryResult(
             short_term=short_results,
             long_term=long_results,
