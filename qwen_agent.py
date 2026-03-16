@@ -21,14 +21,21 @@ class QwenAgent:
     e capturando as respostas do modelo.
     """
 
-    def __init__(self, qwen_command: str = "qwen"):
+    def __init__(self, qwen_command: str = "qwen", work_dir: Optional[str] = None):
         """
         Inicializa o agente Qwen.
 
         Args:
             qwen_command: Comando para invocar o qwen-code (padrão: "qwen").
+            work_dir: Diretório de trabalho para o agente. Se None, usa o diretório atual.
         """
         self.qwen_command = qwen_command
+        self.work_dir = work_dir or os.getcwd()
+        
+        # Garante que o diretório de trabalho existe
+        if not os.path.exists(self.work_dir):
+            os.makedirs(self.work_dir, exist_ok=True)
+            logger.info(f"Criado diretório de trabalho: {self.work_dir}")
 
     async def chat_async(
         self,
@@ -63,12 +70,14 @@ class QwenAgent:
             logger.info(f"[ASYNC] Prompt length: {len(full_prompt)} chars")
             
             # Usa subprocesso assíncrono para não bloquear o event loop
+            # Adicionamos -y para permitir execução automática de ferramentas (YOLO mode)
             process = await asyncio.create_subprocess_exec(
-                self.qwen_command, "-p", full_prompt,
+                self.qwen_command, "-y", "-p", full_prompt,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 stdin=asyncio.subprocess.DEVNULL,
-                env=env
+                env=env,
+                cwd=self.work_dir
             )
             
             logger.info(f"[ASYNC] Processo iniciado com PID={process.pid}")
@@ -238,7 +247,9 @@ class QwenAgent:
 
         # System prompt
         context_parts.append(
-            "Você é um assistente de IA prestativo e inteligente. "
+            "Você é um assistente de IA prestativo e inteligente com acesso total ao sistema de arquivos e terminal do usuário. "
+            "Sempre que o usuário pedir para rodar um servidor (como localhost), suba-o em segundo plano "
+            "de forma que ele NÃO seja encerrado quando sua resposta terminar (use 'nohup ... > /dev/null 2>&1 &' no macOS/Linux). "
             "Abaixo estão informações contextuais que podem ajudar na resposta."
         )
 
@@ -285,7 +296,9 @@ class QwenAgent:
 
         # System prompt
         context_parts.append(
-            "Você é um assistente de IA prestativo e inteligente. "
+            "Você é um assistente de IA prestativo e inteligente com acesso total ao sistema de arquivos e terminal do usuário. "
+            "Sempre que o usuário pedir para rodar um servidor (como localhost), suba-o em segundo plano "
+            "de forma que ele NÃO seja encerrado quando sua resposta terminar (use 'nohup ... > /dev/null 2>&1 &' no macOS/Linux). "
             "Abaixo estão informações contextuais que podem ajudar na resposta."
         )
 

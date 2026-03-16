@@ -52,6 +52,7 @@ class TelegramQwenBot:
         token: str,
         qwen_command: str = "qwen",
         memory_path: str = "./memory_storage",
+        work_dir: str = "./qwen_projects",
         max_history: int = 20,
         max_memories: int = 5
     ):
@@ -62,6 +63,7 @@ class TelegramQwenBot:
             token: Token do bot do Telegram.
             qwen_command: Comando para invocar qwen-code.
             memory_path: Caminho para armazenamento da memória.
+            work_dir: Diretório onde o agente criará arquivos.
             max_history: Máximo de mensagens de histórico para contexto.
             max_memories: Máximo de memórias relevantes para contexto.
         """
@@ -82,8 +84,11 @@ class TelegramQwenBot:
             max_history_per_user=50
         )
 
-        # Agente Qwen
-        self.qwen_agent = QwenAgent(qwen_command=qwen_command)
+        # Agente Qwen - Agora com diretório de trabalho dedicado
+        self.qwen_agent = QwenAgent(
+            qwen_command=qwen_command,
+            work_dir=work_dir
+        )
 
         # Aplicação do Telegram
         self.application: Optional[Application] = None
@@ -257,7 +262,7 @@ class TelegramQwenBot:
         feedback_sent = False
         try:
             # Espera até 10 segundos
-            response = await asyncio.wait_for(asyncio.shield(qwen_task), timeout=10.0)
+            response = await asyncio.wait_for(asyncio.shield(qwen_task), timeout=30.0)
         except asyncio.TimeoutError:
             # Se demorar mais de 10s, envia aviso
             try:
@@ -392,7 +397,8 @@ def main():
     bot = TelegramQwenBot(
         token=token,
         qwen_command=os.getenv("QWEN_COMMAND", "qwen"),
-        memory_path=os.getenv("MEMORY_PATH", "./memory_storage")
+        memory_path=os.getenv("MEMORY_PATH", "./memory_storage"),
+        work_dir=os.getenv("QWEN_WORK_DIR", "./qwen_projects")
     )
 
     async def run_async():
