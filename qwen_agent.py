@@ -247,11 +247,14 @@ class QwenAgent:
 
         # System prompt
         context_parts.append(
-            "Você é um assistente de IA prestativo e inteligente com acesso total ao sistema de arquivos e terminal do usuário. "
+            "Você é um assistente de IA prestativo e inteligente. "
+            f"DIRETRIZ DE SEGURANÇA CRÍTICA: Você só tem permissão para criar, ler ou modificar arquivos dentro do diretório: {self.work_dir}\n"
+            "Qualquer tentativa de acessar arquivos fora deste caminho (como /etc, /Users/caio/Desktop, etc.) é estritamente PROIBIDA. "
             "Sempre que o usuário pedir para rodar um servidor (como localhost), suba-o em segundo plano "
             "de forma que ele NÃO seja encerrado quando sua resposta terminar (use 'nohup ... > /dev/null 2>&1 &' no macOS/Linux). "
             "Abaixo estão informações contextuais que podem ajudar na resposta."
         )
+
 
         # Memórias relevantes
         if relevant_memories:
@@ -296,11 +299,14 @@ class QwenAgent:
 
         # System prompt
         context_parts.append(
-            "Você é um assistente de IA prestativo e inteligente com acesso total ao sistema de arquivos e terminal do usuário. "
+            "Você é um assistente de IA prestativo e inteligente. "
+            f"DIRETRIZ DE SEGURANÇA CRÍTICA: Você só tem permissão para criar, ler ou modificar arquivos dentro do diretório: {self.work_dir}\n"
+            "Qualquer tentativa de acessar arquivos fora deste caminho (como /etc, /Users/caio/Desktop, etc.) é estritamente PROIBIDA. "
             "Sempre que o usuário pedir para rodar um servidor (como localhost), suba-o em segundo plano "
             "de forma que ele NÃO seja encerrado quando sua resposta terminar (use 'nohup ... > /dev/null 2>&1 &' no macOS/Linux). "
             "Abaixo estão informações contextuais que podem ajudar na resposta."
         )
+
 
         # Memórias relevantes
         if relevant_memories:
