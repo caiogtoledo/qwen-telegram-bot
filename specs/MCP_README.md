@@ -2,6 +2,12 @@
 
 Servidor MCP (Model Context Protocol) que fornece habilidades de memória para o Qwen-CLI.
 
+## 📁 Localização
+
+```
+src/infrastructure/mcp/server.py
+```
+
 ## Ferramentas Disponíveis
 
 ### 1. `save_memory`
@@ -58,8 +64,6 @@ Limpa a memória.
 
 ## Configuração
 
-### Opção 1: Configuração Manual no Qwen-CLI
-
 Adicione ao arquivo de configuração do Qwen-CLI (geralmente `~/.qwen/config.json`):
 
 ```json
@@ -67,19 +71,11 @@ Adicione ao arquivo de configuração do Qwen-CLI (geralmente `~/.qwen/config.js
   "mcpServers": {
     "qwen-memory": {
       "command": "python",
-      "args": ["/home/lechamps/qwen-space/mcp_server.py"],
-      "cwd": "/home/lechamps/qwen-space"
+      "args": ["-m", "src.infrastructure.mcp.server"],
+      "cwd": "/path/to/qwen-space"
     }
   }
 }
-```
-
-### Opção 2: Usar o Arquivo de Configuração
-
-Copie o arquivo `qwen-mcp-config.json` para o local apropriado:
-
-```bash
-cp qwen-mcp-config.json ~/.qwen/mcp-config.json
 ```
 
 ## Uso
@@ -87,9 +83,9 @@ cp qwen-mcp-config.json ~/.qwen/mcp-config.json
 ### Iniciando o Servidor
 
 ```bash
-cd /home/lechamps/qwen-space
+cd /path/to/qwen-space
 source venv/bin/activate  # Se estiver usando venv
-python mcp_server.py
+python -m src.infrastructure.mcp.server
 ```
 
 ### Exemplo de Uso no Qwen-CLI
@@ -135,7 +131,7 @@ pip install -r requirements.txt
        ▼
 ┌─────────────────────┐
 │   MCP Server        │
-│  (mcp_server.py)    │
+│  (server.py)        │
 └──────┬──────────────┘
        │
        ▼
@@ -144,4 +140,10 @@ pip install -r requirements.txt
 │  ├─ ShortTermMemory │
 │  └─ LongTermMemory  │
 └─────────────────────┘
+```
+
+## Testes
+
+```bash
+python -m tests.integration.test_mcp
 ```

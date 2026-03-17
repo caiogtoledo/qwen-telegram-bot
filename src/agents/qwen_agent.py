@@ -31,7 +31,7 @@ class QwenAgent:
         """
         self.qwen_command = qwen_command
         self.work_dir = work_dir or os.getcwd()
-        
+
         # Garante que o diretório de trabalho existe
         if not os.path.exists(self.work_dir):
             os.makedirs(self.work_dir, exist_ok=True)
@@ -68,7 +68,7 @@ class QwenAgent:
         try:
             logger.info(f"[ASYNC] Iniciando subprocesso para qwen-code, timeout={timeout}ms")
             logger.info(f"[ASYNC] Prompt length: {len(full_prompt)} chars")
-            
+
             # Usa subprocesso assíncrono para não bloquear o event loop
             # Adicionamos -y para permitir execução automática de ferramentas (YOLO mode)
             process = await asyncio.create_subprocess_exec(
@@ -79,7 +79,7 @@ class QwenAgent:
                 env=env,
                 cwd=self.work_dir
             )
-            
+
             logger.info(f"[ASYNC] Processo iniciado com PID={process.pid}")
 
             # Aguarda com timeout
@@ -147,7 +147,7 @@ class QwenAgent:
             # Se temos um loop rodando, usamos executor para não bloquear
             logger.debug("Running in event loop context, using executor")
             return await loop.run_in_executor(
-                None, 
+                None,
                 lambda: self._chat_sync(message, context, timeout)
             )
         except RuntimeError:
@@ -176,7 +176,7 @@ class QwenAgent:
 
         try:
             logger.debug(f"Executing qwen command (sync) with timeout={timeout}ms")
-            
+
             # Executa qwen-code com o prompt
             process = subprocess.Popen(
                 [self.qwen_command, "-p", full_prompt],

@@ -2,6 +2,12 @@
 
 Bot do Telegram integrado com Qwen-Code para conversas com memória persistente.
 
+## 📁 Localização
+
+```
+src/infrastructure/telegram/bot.py
+```
+
 ## Funcionalidades
 
 - 💬 Conversa natural mantendo contexto
@@ -41,13 +47,13 @@ export QWEN_COMMAND='qwen'  # padrão: "qwen"
 ### Executar o bot
 
 ```bash
-python telegram_bot.py
+python -m src.infrastructure.telegram.bot
 ```
 
 Ou com variáveis explícitas:
 
 ```bash
-TELEGRAM_BOT_TOKEN='seu-token' python telegram_bot.py
+TELEGRAM_BOT_TOKEN='seu-token' python -m src.infrastructure.telegram.bot
 ```
 
 ### Comandos disponíveis
@@ -62,21 +68,23 @@ TELEGRAM_BOT_TOKEN='seu-token' python telegram_bot.py
 ## Arquitetura
 
 ```
-Telegram → telegram_bot.py → qwen_agent.py → qwen (CLI)
-                              ↓
-                    conversation_manager.py
-                              ↓
-                    memory_manager.py
-                              ↓
-                    (FAISS + Short-term)
+Telegram → bot.py → qwen_agent.py → qwen (CLI)
+                    ↓
+          conversation_manager.py
+                    ↓
+          memory_manager.py
+                    ↓
+          (FAISS + Short-term)
 ```
 
 ### Componentes
 
-- **`telegram_bot.py`**: Bot principal do Telegram
-- **`qwen_agent.py`**: Wrapper para invocar qwen-code
-- **`conversation_manager.py`**: Gerencia contexto por usuário
-- **`memory_manager.py`**: Sistema de memória (já existente)
+| Componente | Descrição |
+|------------|-----------|
+| `src/infrastructure/telegram/bot.py` | Bot principal do Telegram |
+| `src/agents/qwen_agent.py` | Wrapper para invocar qwen-code |
+| `src/core/conversation/manager.py` | Gerencia contexto por usuário |
+| `src/core/memory/manager.py` | Sistema de memória |
 
 ## Fluxo de Conversa
 
@@ -93,6 +101,8 @@ Telegram → telegram_bot.py → qwen_agent.py → qwen (CLI)
 O bot pode ser configurado via parâmetros no código:
 
 ```python
+from src.infrastructure.telegram.bot import TelegramQwenBot
+
 bot = TelegramQwenBot(
     token="seu-token",
     qwen_command="qwen",        # Comando qwen-code
@@ -142,5 +152,11 @@ Verifique:
 Os logs são exibidos no console. Para mais detalhes:
 
 ```bash
-PYTHONPATH=. python -c "import logging; logging.basicConfig(level=logging.DEBUG); from telegram_bot import TelegramQwenBot"
+PYTHONPATH=. python -c "import logging; logging.basicConfig(level=logging.DEBUG); from src.infrastructure.telegram.bot import TelegramQwenBot"
+```
+
+## Testes
+
+```bash
+python -m tests.integration.test_integration
 ```

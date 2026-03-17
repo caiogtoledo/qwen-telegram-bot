@@ -2,7 +2,7 @@
 """Script de teste para o MCP Server."""
 
 import asyncio
-from memory_manager import MemoryManager
+from src.core.memory.manager import MemoryManager
 
 # Teste direto do MemoryManager
 print("🧪 Testando MemoryManager...\n")

@@ -1,19 +1,66 @@
-# Sistema de Memória - Curto e Longo Prazo
+# Qwen Space - Sistema de Memória com IA
 
 Sistema de memória para aplicações de IA com suporte a:
 - **Memória de Curto Prazo (STM)**: Baseada em deque com capacidade limitada e TTL
 - **Memória de Longo Prazo (LTM)**: Usando FAISS para busca vetorial com embeddings locais
 - **MCP Server**: Integração com Qwen-CLI via Model Context Protocol
+- **Telegram Bot**: Interface de conversa via Telegram
 
-## Instalação
+## 📁 Estrutura do Projeto
 
-### 1. Criar ambiente virtual (recomendado)
+```
+qwen-space/
+├── src/
+│   ├── core/                    # Núcleo do sistema
+│   │   ├── memory/              # Sistema de memória
+│   │   │   ├── short_term.py
+│   │   │   ├── long_term.py
+│   │   │   └── manager.py
+│   │   └── conversation/        # Gerenciamento de conversas
+│   │       └── manager.py
+│   │
+│   ├── agents/                  # Agentes de IA
+│   │   └── qwen_agent.py
+│   │
+│   └── infrastructure/          # Integrações externas
+│       ├── telegram/
+│       │   └── bot.py
+│       └── mcp/
+│           └── server.py
+│
+├── tests/
+│   ├── unit/
+│   └── integration/
+│
+├── scripts/
+│   └── setup_env.sh
+│
+├── config/
+│   └── mcp_server_config.json
+│
+├── .env.example
+├── requirements.txt
+├── requirements-dev.txt
+└── README.md
+```
+
+## 🚀 Instalação
+
+### 1. Usar o script de setup (recomendado)
+
+```bash
+./scripts/setup_env.sh
+```
+
+### 2. Instalação manual
+
+Criar ambiente virtual:
 
 ```bash
 python3 -m venv venv
 ```
 
-Ative o ambiente virtual:
+Ativar o ambiente virtual:
 
 ```bash
 # Linux/macOS
@@ -23,33 +70,28 @@ source venv/bin/activate
 venv\Scripts\activate
 ```
 
-### 2. Instalar dependências
+Instalar dependências:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Instalar MCP (opcional, para Qwen-CLI)
+### 3. Configurar variáveis de ambiente
 
 ```bash
-pip install mcp
+cp .env.example .env
 ```
 
-## Estrutura
+Edite `.env` e adicione seu token do Telegram:
 
 ```
-├── short_term_memory.py   # Memória de curto prazo
-├── long_term_memory.py    # Memória de longo prazo com FAISS
-├── memory_manager.py      # Gerenciador unificado
-├── mcp_server.py          # Servidor MCP para Qwen-CLI
-├── example.py             # Exemplo de uso
-└── requirements.txt       # Dependências
+TELEGRAM_BOT_TOKEN=seu-token-aqui
 ```
 
-## Uso Básico
+## 📖 Uso Básico
 
 ```python
-from memory_manager import MemoryManager
+from src.core.memory import MemoryManager
 
 # Inicializa
 memory = MemoryManager(
@@ -68,7 +110,24 @@ result = memory.search("linguagem Python", top_k=5)
 context = memory.get_context("como usar Python", max_items=10)
 ```
 
-## MCP Server (Qwen-CLI)
+## 🤖 Telegram Bot
+
+Executar o bot:
+
+```bash
+python -m src.infrastructure.telegram.bot
+```
+
+### Comandos do Bot
+
+| Comando | Descrição |
+|---------|-----------|
+| `/start` | Inicia/reinicia a conversa |
+| `/clear` | Limpa histórico do chat |
+| `/memory` | Mostra estatísticas da memória |
+| `/help` | Mostra ajuda |
+
+## 🔧 MCP Server (Qwen-CLI)
 
 O servidor MCP permite que o Qwen-CLI acesse a memória através de ferramentas.
 
@@ -81,8 +140,8 @@ Adicione ao arquivo de configuração do Qwen-CLI (`~/.qwen/config.json`):
   "mcpServers": {
     "qwen-memory": {
       "command": "python",
-      "args": ["/home/lechamps/qwen-space/mcp_server.py"],
-      "cwd": "/home/lechamps/qwen-space"
+      "args": ["-m", "src.infrastructure.mcp.server"],
+      "cwd": "/path/to/qwen-space"
     }
   }
 }
@@ -98,23 +157,15 @@ Adicione ao arquivo de configuração do Qwen-CLI (`~/.qwen/config.json`):
 | `get_memory_stats` | Estatísticas de uso |
 | `clear_memory` | Limpa a memória |
 
-### Exemplo de Uso
+## 🧪 Testes
 
-No Qwen-CLI, após configurar:
+Executar testes de integração:
 
-```
-User: Remember that I prefer Python
-Assistant: [uses save_memory] ✓ Memory saved!
-
-User: What do you know about my preferences?
-Assistant: [uses search_memory] 
-Search results for: 'preferences'
-• [Score: 0.85] I prefer Python
+```bash
+python -m tests.integration.test_integration
 ```
 
-Veja mais em: [MCP_README.md](MCP_README.md)
-
-## API
+## 📊 API
 
 ### MemoryManager
 
@@ -140,16 +191,42 @@ Veja mais em: [MCP_README.md](MCP_README.md)
 - `long_term_index_type`: Tipo de índice FAISS (`flat`, `ivf`, `hnsw`)
 - `similarity_threshold`: Limiar de similaridade (padrão: 0.3)
 
-## Executar Exemplo
+## 🛠️ Desenvolvimento
+
+Instalar dependências de desenvolvimento:
 
 ```bash
-python example.py
+pip install -r requirements-dev.txt
 ```
 
-## Modelos de Embedding Disponíveis
+### Rodar testes com pytest
+
+```bash
+pytest tests/
+```
+
+### Formatação de código
+
+```bash
+black src/ tests/
+isort src/ tests/
+```
+
+### Linting
+
+```bash
+flake8 src/ tests/
+```
+
+## 📝 Modelos de Embedding Disponíveis
 
 - `all-MiniLM-L6-v2` (rápido, 384 dimensões)
 - `all-mpnet-base-v2` (melhor qualidade, 768 dimensões)
 - `paraphrase-multilingual-MiniLM-L12-v2` (multilíngue)
 
 Veja mais em: https://www.sbert.net/docs/pretrained_models.html
+
+## 📚 Documentação Adicional
+
+- [MCP Server](MCP_README.md)
+- [Telegram Bot](TELEGRAM_README.md)

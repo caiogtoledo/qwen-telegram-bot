@@ -10,7 +10,7 @@ from typing import Optional
 import threading
 import logging
 
-from memory_manager import MemoryManager
+from src.core.memory.manager import MemoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class Conversation:
 class ConversationManager:
     """
     Gerencia conversas de múltiplos usuários.
-    
+
     Mantém o estado de cada conversa e integra com o sistema
     de memória para fornecer contexto ao agente de IA.
     """
@@ -162,7 +162,7 @@ class ConversationManager:
             Tupla (histórico_recente, memórias_relevantes).
         """
         logger.info(f"[CONV] get_context() iniciado para chat_id={chat_id}")
-        
+
         with self._lock:
             logger.info(f"[CONV] Lock adquirido, obtendo conversa...")
             conv = self._conversations.get(chat_id)

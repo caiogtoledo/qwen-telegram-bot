@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "qwen-memory": {
+      "command": "python",
+      "args": ["-m", "src.infrastructure.mcp.server"],
+      "cwd": "/path/to/qwen-space"
+    }
+  }
+}

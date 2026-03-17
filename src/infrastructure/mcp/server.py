@@ -9,7 +9,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
-from memory_manager import MemoryManager
+from src.core.memory.manager import MemoryManager
 
 # Inicializa servidor e gerenciador de memória
 server = Server("qwen-memory")
@@ -111,84 +111,84 @@ async def list_tools() -> list[Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     """Executa uma ferramenta."""
-    
+
     if name == "save_memory":
         content = arguments.get("content")
         importance = arguments.get("importance", 1.0)
         long_term = arguments.get("long_term", True)
-        
+
         if not content:
             return [TextContent(
                 type="text",
                 text="Error: 'content' is required"
             )]
-        
+
         result = memory.add(
             content=content,
             importance=importance,
             store_long_term=long_term
         )
-        
+
         response = (
             f"✓ Memory saved successfully!\n"
             f"- Short-term: {'Stored' if result['short_term'] else 'Failed'}\n"
             f"- Long-term: {'Stored' if result['long_term'] else 'Not stored'}\n"
             f"- Content: {content[:100]}{'...' if len(content) > 100 else ''}"
         )
-        
+
         return [TextContent(type="text", text=response)]
-    
+
     elif name == "search_memory":
         query = arguments.get("query")
         top_k = arguments.get("top_k", 5)
-        
+
         if not query:
             return [TextContent(
                 type="text",
                 text="Error: 'query' is required"
             )]
-        
+
         results = memory.search(query, top_k=top_k)
-        
+
         response_lines = [f"Search results for: '{query}'\n"]
-        
+
         # Long-term results
         if results.long_term:
             response_lines.append("📚 Long-term memory:")
             for item, score in results.long_term:
                 response_lines.append(f"  • [Score: {score:.2f}] {item.content}")
-        
+
         # Short-term results
         if results.short_term:
             response_lines.append("\n⏱️ Short-term memory (recent):")
             for item in results.short_term:
                 response_lines.append(f"  • {item.content}")
-        
+
         if not results.long_term and not results.short_term:
             response_lines.append("No relevant memories found.")
-        
+
         return [TextContent(type="text", text="\n".join(response_lines))]
-    
+
     elif name == "get_recent_memories":
         n = arguments.get("n", 10)
-        
+
         items = memory.short_term.get_recent(n)
-        
+
         if not items:
             return [TextContent(
                 type="text",
                 text="No recent memories found."
             )]
-        
+
         response_lines = [f"📋 Recent memories (last {len(items)} items):\n"]
         for i, item in enumerate(items, 1):
             response_lines.append(f"{i}. {item.content}")
-        
+
         return [TextContent(type="text", text="\n".join(response_lines))]
-    
+
     elif name == "get_memory_stats":
         stats = memory.stats()
-        
+
         response = (
             "📊 Memory Statistics\n"
             "══════════════════════\n"
@@ -199,12 +199,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             f"  • Items: {stats['long_term']['size']}\n"
             f"  • Model: {stats['long_term']['model']}"
         )
-        
+
         return [TextContent(type="text", text=response)]
-    
+
     elif name == "clear_memory":
         scope = arguments.get("scope", "all")
-        
+
         if scope == "short":
             memory.clear_short_term()
             message = "Short-term memory cleared."
@@ -214,9 +214,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         else:
             memory.clear_all()
             message = "All memory cleared."
-        
+
         return [TextContent(type="text", text=f"✓ {message}")]
-    
+
     else:
         return [TextContent(
             type="text",

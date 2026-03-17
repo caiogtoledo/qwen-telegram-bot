@@ -10,28 +10,28 @@ print("🧪 Testando integração dos componentes...\n")
 # Testa imports
 print("1. Testando imports...")
 try:
-    from memory_manager import MemoryManager
+    from src.core.memory.manager import MemoryManager
     print("   ✓ memory_manager")
 except Exception as e:
     print(f"   ✗ memory_manager: {e}")
     sys.exit(1)
 
 try:
-    from conversation_manager import ConversationManager
+    from src.core.conversation.manager import ConversationManager
     print("   ✓ conversation_manager")
 except Exception as e:
     print(f"   ✗ conversation_manager: {e}")
     sys.exit(1)
 
 try:
-    from qwen_agent import QwenAgent
+    from src.agents.qwen_agent import QwenAgent
     print("   ✓ qwen_agent")
 except Exception as e:
     print(f"   ✗ qwen_agent: {e}")
     sys.exit(1)
 
 try:
-    from telegram_bot import TelegramQwenBot
+    from src.infrastructure.telegram.bot import TelegramQwenBot
     print("   ✓ telegram_bot")
 except Exception as e:
     print(f"   ✗ telegram_bot: {e}")
@@ -90,7 +90,7 @@ print("\n6. Limpando dados de teste...")
 try:
     import shutil
     from pathlib import Path
-    
+
     test_path = Path("./test_memory_storage")
     if test_path.exists():
         shutil.rmtree(test_path)
@@ -104,4 +104,5 @@ print("   - memory_manager: OK")
 print("   - conversation_manager: OK")
 print("   - qwen_agent: OK")
 print("   - telegram_bot: OK")
-print("\n🚀 Próximo passo: Configure TELEGRAM_BOT_TOKEN e execute telegram_bot.py")
+print("\n🚀 Próximo passo: Configure TELEGRAM_BOT_TOKEN e execute o bot com:")
+print("   python -m src.infrastructure.telegram.bot")
