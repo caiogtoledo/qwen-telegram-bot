@@ -1,4 +1,4 @@
-# Qwen Space - Sistema de Memória com IA
+# Qwen Space - QwenCode conectado no Bot do Telegram
 
 Sistema de memória para aplicações de IA com suporte a:
 - **Memória de Curto Prazo (STM)**: Baseada em deque com capacidade limitada e TTL
