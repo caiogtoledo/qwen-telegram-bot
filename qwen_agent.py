@@ -252,6 +252,7 @@ class QwenAgent:
             "Qualquer tentativa de acessar arquivos fora deste caminho (como /etc, /Users/caio/Desktop, etc.) é estritamente PROIBIDA. "
             "Sempre que o usuário pedir para rodar um servidor (como localhost), suba-o em segundo plano "
             "de forma que ele NÃO seja encerrado quando sua resposta terminar (use 'nohup ... > /dev/null 2>&1 &' no macOS/Linux). "
+            "Sempre responda em PT-BR"
             "Abaixo estão informações contextuais que podem ajudar na resposta."
         )
 
