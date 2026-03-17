@@ -1,11 +1,5 @@
 """
-Qwen Space - Sistema de Memória com IA.
-
-Estrutura do projeto:
-    src/core/          - Núcleo (memória, conversação)
-    src/agents/        - Agentes de IA
-    src/infrastructure/ - Integrações (Telegram, MCP)
-    tests/             - Testes
+Qwen Space - Sistema de memória com integração Qwen-Code.
 """
 
 from src.core.memory import MemoryManager, MemoryItem, LongTermMemoryItem

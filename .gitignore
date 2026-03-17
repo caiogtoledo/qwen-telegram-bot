@@ -24,7 +24,9 @@ wheels/
 venv/
 ENV/
 env/
-.venv/
+
+# Environment variables
+.env
 
 # IDE
 .idea/
@@ -33,35 +35,16 @@ env/
 *.swo
 *~
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# Type checking
-.mypy_cache/
-.pytype/
-
 # OS
 .DS_Store
 Thumbs.db
 
+# Memory storage
+memory_storage/
+test_memory_storage/
+
+# Projects JS
+node_modules
+
 # Logs
 *.log
-
-# Environment variables
-.env
-.env.local
-
-*index.faiss
-index.faiss
-*metadata.pkl
-metadata.pkl
-
-
-node_modules
-*.faiss
-
-qwen_projects
-memory_storage

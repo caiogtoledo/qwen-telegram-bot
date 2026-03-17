@@ -1,3 +1,4 @@
+# Production dependencies
 faiss-cpu>=1.13.2
 sentence-transformers>=2.2.2
 numpy>=1.21.0

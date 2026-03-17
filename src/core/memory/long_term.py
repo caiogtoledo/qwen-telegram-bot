@@ -37,13 +37,13 @@ class LongTermMemoryItem:
 class LongTermMemory:
     """
     Memória de longo prazo usando FAISS para busca vetorial eficiente.
-    
+
     Utiliza embeddings locais gerados por modelos Sentence Transformers
     para permitir busca semântica sobre o conteúdo armazenado.
     """
-    
+
     DEFAULT_MODEL = "all-MiniLM-L6-v2"
-    
+
     def __init__(
         self,
         storage_path: Optional[str] = None,
@@ -61,7 +61,7 @@ class LongTermMemory:
             similarity_threshold: Limiar mínimo de similaridade para buscas.
         """
         logger.info(f"[LTM] LongTermMemory iniciando: model={model_name}, path={storage_path}")
-        
+
         self._storage_path = Path(storage_path) if storage_path else None
         self._model_name = model_name
         self._similarity_threshold = similarity_threshold
@@ -75,7 +75,7 @@ class LongTermMemory:
         self._index = None
         self._index_type = index_type
         self._use_faiss = FAISS_AVAILABLE
-        
+
         if self._use_faiss:
             logger.info("[LTM] FAISS disponível, índice será criado lazy")
         else:
@@ -86,9 +86,9 @@ class LongTermMemory:
         # Armazena metadados dos itens
         self._items: dict[int, LongTermMemoryItem] = {}
         self._next_id = 0
-        
+
         logger.info(f"[LTM] LongTermMemory inicializado (modelo e índice lazy)")
-        
+
         # Carrega dados persistidos se existirem
         self._load()
 
@@ -105,19 +105,19 @@ class LongTermMemory:
             self._embedding_dim = self._model.get_sentence_embedding_dimension()
             elapsed = time.time() - start
             logger.info(f"[LTM] Modelo carregado em {elapsed:.2f}s, dim={self._embedding_dim}")
-            
+
             # Cria o índice FAISS agora que temos a dimensão
             if self._use_faiss and self._index is None:
                 logger.info(f"[LTM] Criando índice FAISS tipo={self._index_type}")
                 self._index = self._create_index(self._index_type)
-    
+
     def _create_index(self, index_type: str) -> faiss.Index:
         """
         Cria índice FAISS baseado no tipo especificado.
-        
+
         Args:
             index_type: Tipo de índice ("flat", "ivf", "hnsw").
-            
+
         Returns:
             Índice FAISS inicializado.
         """
@@ -132,32 +132,32 @@ class LongTermMemory:
             return faiss.IndexHNSWFlat(self._embedding_dim, 32)
         else:
             raise ValueError(f"Tipo de índice desconhecido: {index_type}")
-    
+
     def add(self, content: str, metadata: Optional[dict] = None) -> int:
         """
         Adiciona um item à memória de longo prazo.
-        
+
         Args:
             content: Conteúdo textual a ser armazenado.
             metadata: Metadados opcionais associados ao item.
-            
+
         Returns:
             ID do item adicionado.
         """
         with self._lock:
             # Garante que o modelo está carregado
             self._ensure_model_loaded()
-            
+
             # Gera embedding
             embedding = self._model.encode(
                 [content],
                 normalize_embeddings=True,
                 convert_to_numpy=True
             )[0]
-            
+
             # Adiciona ao índice FAISS
             self._index.add(embedding.reshape(1, -1))
-            
+
             # Cria e armazena item
             item = LongTermMemoryItem(
                 id=self._next_id,
@@ -168,37 +168,37 @@ class LongTermMemory:
             self._items[self._next_id] = item
             item_id = self._next_id
             self._next_id += 1
-            
+
             # Persiste se houver caminho configurado
             if self._storage_path:
                 self._save()
-            
+
             return item_id
-    
+
     def add_batch(self, contents: list[str]) -> list[int]:
         """
         Adiciona múltiplos itens em lote.
-        
+
         Args:
             contents: Lista de conteúdos para adicionar.
-            
+
         Returns:
             Lista de IDs dos itens adicionados.
         """
         with self._lock:
             # Garante que o modelo está carregado
             self._ensure_model_loaded()
-            
+
             # Gera embeddings em lote
             embeddings = self._model.encode(
                 contents,
                 normalize_embeddings=True,
                 convert_to_numpy=True
             )
-            
+
             # Adiciona ao índice
             self._index.add(embeddings)
-            
+
             # Cria itens
             ids = []
             for i, content in enumerate(contents):
@@ -211,26 +211,26 @@ class LongTermMemory:
                 self._items[self._next_id] = item
                 ids.append(self._next_id)
                 self._next_id += 1
-            
+
             if self._storage_path:
                 self._save()
-            
+
             return ids
-    
+
     def search(
-        self, 
-        query: str, 
+        self,
+        query: str,
         top_k: int = 5,
         threshold: Optional[float] = None
     ) -> list[tuple[LongTermMemoryItem, float]]:
         """
         Busca itens similares na memória.
-        
+
         Args:
             query: Texto de busca.
             top_k: Número máximo de resultados.
             threshold: Limiar de similaridade (sobrescreve o padrão).
-            
+
         Returns:
             Lista de tuplas (item, score_de_similaridade).
         """
@@ -246,45 +246,45 @@ class LongTermMemory:
                 normalize_embeddings=True,
                 convert_to_numpy=True
             )
-            
+
             # Busca no índice
             actual_k = min(top_k, len(self._items))
             if actual_k == 0:
                 return []
-            
+
             scores, indices = self._index.search(query_embedding, actual_k)
-            
+
             # Filtra por threshold e monta resultados
             results = []
             for score, idx in zip(scores[0], indices[0]):
                 if idx < len(self._items) and score >= threshold:
                     item = self._items[int(idx)]
                     results.append((item, float(score)))
-            
+
             return results
-    
+
     def search_by_id(self, item_id: int) -> Optional[LongTermMemoryItem]:
         """
         Busca um item específico pelo ID.
-        
+
         Args:
             item_id: ID do item.
-            
+
         Returns:
             Item encontrado ou None.
         """
         return self._items.get(item_id)
-    
+
     def remove(self, item_id: int) -> bool:
         """
         Remove um item da memória.
-        
+
         Nota: FAISS não suporta remoção direta. O item é removido
         dos metadados mas permanece no índice (baixo impacto).
-        
+
         Args:
             item_id: ID do item a remover.
-            
+
         Returns:
             True se removido, False se não encontrado.
         """
@@ -295,7 +295,7 @@ class LongTermMemory:
                     self._save()
                 return True
             return False
-    
+
     def clear(self) -> None:
         """Limpa toda a memória."""
         with self._lock:
@@ -304,30 +304,30 @@ class LongTermMemory:
             self._next_id = 0
             if self._storage_path:
                 self._save()
-    
+
     def size(self) -> int:
         """
         Retorna o número de itens armazenados.
-        
+
         Returns:
             Número de itens na memória.
         """
         return len(self._items)
-    
+
     def get_all(self) -> list[LongTermMemoryItem]:
         """
         Retorna todos os itens armazenados.
-        
+
         Returns:
             Lista de todos os itens.
         """
         return list(self._items.values())
-    
+
     def _save(self) -> None:
         """Persiste os dados em disco."""
         if not self._storage_path:
             return
-            
+
         if self._index is None:
             logger.warning("[LTM] Tentativa de salvar sem índice carregado")
             return
@@ -355,12 +355,12 @@ class LongTermMemory:
         }
         with open(self._storage_path / "metadata.pkl", "wb") as f:
             pickle.dump(metadata, f)
-    
+
     def _load(self) -> None:
         """Carrega dados persistidos."""
         if not self._storage_path:
             return
-            
+
         index_path = self._storage_path / "index.faiss"
         metadata_path = self._storage_path / "metadata.pkl"
 
@@ -370,7 +370,7 @@ class LongTermMemory:
 
         try:
             logger.info(f"[LTM] Carregando dados persistidos...")
-            
+
             # Carrega índice
             self._index = faiss.read_index(str(index_path))
             logger.info(f"[LTM] Índice FAISS carregado: {self._index.ntotal} vetores")
@@ -380,7 +380,7 @@ class LongTermMemory:
                 metadata = pickle.load(f)
 
             self._next_id = metadata.get("next_id", 0)
-            
+
             # Tenta obter dimensão do índice
             if self._index.ntotal > 0:
                 self._embedding_dim = self._index.d
@@ -399,7 +399,7 @@ class LongTermMemory:
                         metadata=item_data.get("metadata", {})
                     )
                     self._items[int(key)] = item
-                    
+
             logger.info(f"[LTM] Carregados {len(self._items)} itens")
 
         except Exception as e:
@@ -411,9 +411,9 @@ class LongTermMemory:
                 self._index = self._create_index("flat")
             self._items.clear()
             self._next_id = 0
-    
+
     def __len__(self) -> int:
         return self.size()
-    
+
     def __repr__(self) -> str:
         return f"LongTermMemory(items={len(self)}, model={self._model_name})"

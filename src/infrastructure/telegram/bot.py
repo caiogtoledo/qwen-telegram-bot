@@ -21,9 +21,9 @@ from telegram.ext import (
     filters
 )
 
-from memory_manager import MemoryManager
-from conversation_manager import ConversationManager
-from qwen_agent import QwenAgent
+from src.core.memory.manager import MemoryManager
+from src.core.conversation.manager import ConversationManager
+from src.agents.qwen_agent import QwenAgent
 
 # Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class TelegramQwenBot:
     """
     Bot do Telegram que integra com Qwen-Code.
-    
+
     Permite conversar com o agente de IA através do Telegram,
     mantendo contexto e usando memória de longo/curto prazo.
     """
@@ -232,22 +232,22 @@ class TelegramQwenBot:
                 thinking_message=thinking_message
             )
         )
-        
+
         # Adiciona ao conjunto para evitar garbage collection
         self.background_tasks.add(task)
         task.add_done_callback(self.background_tasks.discard)
 
     async def _background_process(
-        self, 
-        update: Update, 
-        message_text: str, 
-        history: list, 
-        memories: list, 
+        self,
+        update: Update,
+        message_text: str,
+        history: list,
+        memories: list,
         thinking_message: Update.message
     ):
         """Processa a mensagem em segundo plano e envia a resposta."""
         chat_id = update.effective_chat.id
-        
+
         # Cria uma task para o Qwen para podermos monitorar o tempo
         qwen_task = asyncio.create_task(
             self.qwen_agent.chat_with_memory_async(
@@ -273,7 +273,7 @@ class TelegramQwenBot:
                 feedback_sent = True
             except Exception as e:
                 logger.warning(f"Falha ao enviar feedback de background: {e}")
-            
+
             # Continua esperando a resposta original sem limite curto
             try:
                 response = await qwen_task
